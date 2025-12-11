@@ -9,9 +9,9 @@ const postRoutes = require('./routes/postRoutes');
 
 const app = express();
 
-app.use(express.json({ extended: true }));
-app.use(express.urlencoded({ extended: true }));
-app.use(cors({ credentials: true, origin: "http://localhost:3000" }));
+app.use(express.json({ extended: true })); //use express json middleware
+app.use(express.urlencoded({ extended: true })); //use express urlencoded middleware
+app.use(cors({ credentials: true, origin: "http://localhost:3000" })); //use cors middleware
 
 app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);
