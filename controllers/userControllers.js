@@ -3,6 +3,9 @@ const jwt = require('jsonwebtoken');
 
 const User = require('../models/userModel');
 const HttpError = require('../models/errorModel');
+const fs = require('fs');
+const path = require('path');
+const {v4: uuidv4} = require('uuid');
 
 
 
@@ -112,24 +115,61 @@ const getUser = async (req, res, next) => {
 }
 
 
-
-
-
-
-
-
 //=================Change User Avatar (Profile Picture)=================
 //POST: /api/users/change-avatar
 //protected
 
 const changeAvatar = async (req, res, next) => {
     try {
-        res.json(req.files);
-        console.log(req.files);
+        if(!req.file.avatar){
+            return next(new HttpError('No avatar file uploaded.', 422));
+        }
+
+        //find user from database
+        const user = await User.findById(req.user.id);
+        if(!user) {
+            return next(new HttpError('User not found.', 404));
+        }
+        //delete previous avatar file from uploads folder
+        if(user.avatar){
+            fs.unlink(path.join(__dirname, '..', 'uploads', user.avatar), (err) => {
+                if (err) {
+                   return next(new HttpError('Deleting previous avatar failed.', 422));
+                }
+            });
+        }
+
+
+        //save new avatar filename to user document
+        const {avatar} = req.file;
+        //check file size
+        if(avatar.size > 3 * 1024 * 1024) { //3MB limit
+            return next(new HttpError('Avatar file size exceeds 2MB limit.', 422));
+        }
+
+        let fileName;
+        fileName = avatar.name;
+        let splittedFileName = fileName.split('.');
+        let newFileName = splittedFileName[0] + uuidv4() + '.' + splittedFileName[splittedFileName.length - 1];
+        //move file to uploads folder  
+        avatar.mv(path.join(__dirname, '..', 'uploads', newFileName), async (err) => {
+            if (err) {
+                return next(new HttpError('Uploading avatar failed.', 422));
+            }
+
+            const updatedAvatar = await User.findByIdAndUpdate(req.user.id, {avatar: newFileName}, {new: true})
+            if(!updatedAvatar) {
+                return next(new HttpError('Avatar cant change.', 422));
+            }
+            res.status(200).json(updatedAvatar.avatar);
+        });
+
     } catch (error) {
         return next(new HttpError('Changing avatar failed, please try again later.', 422));
     }
 }
+
+
 
 //=================Edit User Details (from profile)=================
 //POST: /api/users/edit-user
