@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { connect } = require('mongoose');
 require('dotenv').config();
+const upload = require('express-fileupload');
 
 
 
@@ -11,9 +12,12 @@ const { notFound , errorHandler} = require('./middleware/errorMiddleware');
 
 const app = express();
 
+//Middleware
 app.use(express.json({ extended: true })); //use express json middleware
 app.use(express.urlencoded({ extended: true })); //use express urlencoded middleware
 app.use(cors({ credentials: true, origin: "http://localhost:3000" })); //use cors middleware
+app.use(upload()); //use express file upload middleware
+app.use('/uploads', express.static(__dirname + '/uploads')); //serve static files from uploads folder
 
 app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);

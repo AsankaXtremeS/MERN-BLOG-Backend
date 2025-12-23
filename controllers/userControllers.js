@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const User = require('../models/userModel');
 const HttpError = require('../models/errorModel');
@@ -39,7 +40,7 @@ const registerUser = async (req, res, next) => {
             email: newEmail,
             password: hashedPassword
         })
-        res.status(201).json(newUser);
+        res.status(201).json(`New user: ${newUser.email} registered successfully.`);
 
 
 
@@ -53,33 +54,81 @@ const registerUser = async (req, res, next) => {
 
 
 
-
-
-
-
-
 //=================Login a Registered User=================
 //POST: /api/users/login
 //Unprotected
 
 const loginUser = async (req, res, next) => {
-    res.json('Login is working');
+    try{
+        const {email, password} = req.body;
+        if(!email || !password) {
+            return next(new HttpError('Fill in all required fields.', 422));
+        }
+
+        const newEmail = email.toLowerCase();
+
+        const user = await User.findOne({email: newEmail});
+        if(!user) {
+            return next(new HttpError('Invalid credentials, could not log you in.', 422));
+        }
+
+        const comparePasswords = await bcrypt.compare(password, user.password);
+        if(!comparePasswords) {
+            return next(new HttpError('Invalid credentials, could not log you in.', 422));
+        }
+
+        const {_id: id, name} = user;
+        // Use a secret key and optionally set token expiration
+        const token = jwt.sign({id, name}, process.env.JWT_SECRET, {expiresIn: '1d'});
+
+        res.status(200).json({token, id, name});
+
+    }catch(error){
+        return next(new HttpError('Logging in user failed, please try again later.', 422));
 }
+}
+
+
+
+
 
 //=================User Profile=================
 //POST: /api/users/:id
 //Unprotected
 
 const getUser = async (req, res, next) => {
-    res.json('User profile is working');
+    try {
+        const {id} = req.params;
+        const user = await User.findById(id).select('-password');   
+        if(!user) {
+            return next(new HttpError('User not found.', 404));
+        }
+        res.status(200).json(user);
+    } catch (error) {
+        return next(new HttpError('Fetching user failed, please try again later.', 422));
+    }
+
+
 }
+
+
+
+
+
+
+
 
 //=================Change User Avatar (Profile Picture)=================
 //POST: /api/users/change-avatar
 //protected
 
 const changeAvatar = async (req, res, next) => {
-    res.json('Change avatar is working');
+    try {
+        res.json(req.files);
+        console.log(req.files);
+    } catch (error) {
+        return next(new HttpError('Changing avatar failed, please try again later.', 422));
+    }
 }
 
 //=================Edit User Details (from profile)=================
@@ -95,7 +144,15 @@ const editUser = async (req, res, next) => {
 //protected
 
 const getAuthors = async (req, res, next) => {
-    res.json('All users/authors');
+    try {
+        const authors = await User.find().select('-password');
+        res.status(200).json(authors);
+    } catch (error) {
+        return next(new HttpError('Fetching authors failed, please try again later.', 422));
+    }
+    if(!authors) {
+        return next(new HttpError('No authors found.', 404));
+    }
 }
 
 module.exports = {
