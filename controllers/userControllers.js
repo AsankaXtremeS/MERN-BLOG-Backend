@@ -181,7 +181,52 @@ const changeAvatar = async (req, res, next) => {
 //protected
 
 const editUser = async (req, res, next) => {
-    res.json('Edit user is working');
+    try {
+        const {name, email, currentPassword, newPassword, newConfirmPassword} = req.body;
+
+        if(!name || !email || !currentPassword || !newPassword || !newConfirmPassword) {
+            return next(new HttpError('Please fill in all required fields.', 422));
+        }
+
+        //Get user from database
+        const user =  await User.findById(req.user.id);
+        if(!user) {
+            return next(new HttpError('User not found.', 404));
+        }
+
+        //make sure new email does not already exist
+        const emailExist = await User.findOne({email});
+        if(emailExist && (emailExist._id != req.user.id)) {
+            return next(new HttpError('Email already in use, please use a different email.', 422));
+        }
+
+        //Check current password
+        const validateUserPassword = await bcrypt.compare(currentPassword, user.password);
+        if(!validateUserPassword) {
+            return next(new HttpError('Current password is incorrect.', 422));
+        }
+
+        if(newPassword !== newConfirmPassword) {
+            return next(new HttpError('New passwords do not match.', 422));
+        }
+        if((newPassword || '').trim().length < 6) {
+            return next(new HttpError('New password must be at least 6 characters.', 422));
+        }
+        const salt =  await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(newPassword, salt);
+
+        const updateFields = { name, email, password: hash };
+
+        const newInfo = await User.findByIdAndUpdate(
+            req.user.id,
+            updateFields,
+            {new: true}
+        );
+        res.status(200).json(newInfo);
+    } catch (error) {
+        console.log('EditUser error:', error);
+        return next(new HttpError('Editing user failed, please try again later.', 422));
+    }
 }
 
 //=================Get Authors=================
