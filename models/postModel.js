@@ -19,10 +19,11 @@ const postSchema = new Schema(
       ],
       message: "{VALUE is not supported",
     },
-    
+
     description: { type: String, required: true },
     creator: { type: Schema.Types.ObjectId, ref: "User" },
     title: { type: String, required: true },
+    thumbnail: { type: String, required: true }
   },
   { timestamps: true }
 );
